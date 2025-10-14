@@ -1,0 +1,130 @@
+import datetime
+
+# --- КОНСТАНТЫ И НАСТРОЙКИ МАСТЕРСКОЙ ---
+
+WORKSHOP_OPEN_HOUR = 10  # Час открытия
+WORKSHOP_CLOSE_HOUR = 22 # Час закрытия
+TIME_STEP_MINUTES = 30   # Шаг для проверки слотов (30 минут)
+TOTAL_SPOTS = 8          # Всего мест в мастерской
+TOTAL_POTTERY_WHEELS = 2
+POTTERY_WHEEL_NAME = "Гончарный круг"
+
+# --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+
+def str_to_time(time_str: str) -> datetime.time:
+    """Преобразует строку 'HH:MM:SS' в объект datetime.time."""
+    return datetime.datetime.strptime(time_str, "%H:%M:%S").time()
+
+def generate_timeline() -> dict:
+    """
+    Создает пустой "таймлайн" рабочего дня с шагом в 30 минут.
+    Ключ - время, значение - информация о нагрузке.
+    """
+    timeline = {}
+    current_time = datetime.datetime.combine(datetime.date.today(), datetime.time(WORKSHOP_OPEN_HOUR))
+    end_time = datetime.datetime.combine(datetime.date.today(), datetime.time(WORKSHOP_CLOSE_HOUR))
+
+    while current_time < end_time:
+        timeline[current_time.time()] = {
+            "people_count": 0,
+            "is_blocked_by_event": False,
+            "pottery_wheels_used": 0
+        }
+        current_time += datetime.timedelta(minutes=TIME_STEP_MINUTES)
+    
+    return timeline
+
+# --- ОСНОВНЫЕ ЛОГИЧЕСКИЕ ФУНКЦИИ ---
+
+def calculate_timeline_load(bookings: list, events: list) -> dict:
+    """
+    Рассчитывает нагрузку на каждый временной слот в течение дня.
+    
+    Args:
+        bookings: Список словарей с данными о бронированиях из NocoDB.
+        events: Список словарей с данными о мероприятиях из NocoDB.
+        
+    Returns:
+        Словарь (таймлайн) с рассчитанной нагрузкой на каждый слот.
+    """
+    timeline = generate_timeline()
+
+    # 1. Обрабатываем мероприятия, которые блокируют всю мастерскую
+    for event in events:
+        start_time = str_to_time(event["Начало"])
+        end_time = str_to_time(event["Конец"])
+        
+        for slot_time in timeline:
+            if start_time <= slot_time < end_time:
+                timeline[slot_time]["is_blocked_by_event"] = True
+
+    # 2. Обрабатываем индивидуальные бронирования
+    for booking in bookings:
+        start_time = str_to_time(booking["Время начала"])
+        end_time = str_to_time(booking["Время конца"])
+
+        for slot_time in timeline:
+            # Если слот попадает в интервал бронирования, увеличиваем счетчик людей
+            if start_time <= slot_time < end_time:
+                timeline[slot_time]["people_count"] += 1
+                
+                if booking.get("Оборудование") == POTTERY_WHEEL_NAME:
+                    timeline[slot_time]["pottery_wheels_used"] += 1
+    
+    return timeline
+
+
+def get_available_start_times(timeline: dict, equipment_required: str | None = None) -> list[str]:
+    """
+    Находит доступные времена для НАЧАЛА записи.
+    Если указано equipment_required, проверяет и его доступность.
+    """
+    available_times = []
+    for slot_time, load_info in timeline.items():
+        # Базовое условие: слот не заблокирован и есть общие места
+        is_available = not load_info["is_blocked_by_event"] and load_info["people_count"] < TOTAL_SPOTS
+        
+        if equipment_required == POTTERY_WHEEL_NAME:
+            is_available = is_available and (load_info["pottery_wheels_used"] < TOTAL_POTTERY_WHEELS)
+        
+        if is_available:
+            available_times.append(slot_time.strftime("%H:%M"))
+            
+    return available_times
+
+
+
+def get_max_duration(start_time_str: str, timeline: dict, equipment_required: str | None = None) -> float:
+    """
+    Рассчитывает максимально возможную длительность записи с учетом оборудования.
+    """
+    start_time = datetime.datetime.strptime(start_time_str, "%H:%M").time()
+    
+    if start_time not in timeline:
+        return 0.0
+
+    max_duration_minutes = 0
+    sorted_slots = sorted(timeline.keys())
+    
+    try:
+        start_index = sorted_slots.index(start_time)
+    except ValueError:
+        return 0.0
+    
+    for i in range(start_index, len(sorted_slots)):
+        slot_time = sorted_slots[i]
+        load_info = timeline[slot_time]
+        
+        # Проверяем общие места
+        is_slot_ok = not load_info["is_blocked_by_event"] and load_info["people_count"] < TOTAL_SPOTS
+        
+        # Если нужно оборудование, добавляем проверку
+        if equipment_required == POTTERY_WHEEL_NAME:
+            is_slot_ok = is_slot_ok and (load_info["pottery_wheels_used"] < TOTAL_POTTERY_WHEELS)
+        
+        if is_slot_ok:
+            max_duration_minutes += TIME_STEP_MINUTES
+        else:
+            break
+            
+    return max_duration_minutes / 60.0
