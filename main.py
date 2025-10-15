@@ -79,11 +79,13 @@ async def create_booking(booking_data: schemas.BookingCreate):
     """
     Эндпоинт для создания новой брони с финальной проверкой.
     """
+    
+    parsed_date = parse_date_from_str(booking_data.date)
     # --- Шаг 1: Повторная проверка доступности (защита от "гонки") ---
     
     # Получаем самые свежие данные из NocoDB
-    latest_bookings = await nocodb_client.get_bookings_by_date(booking_data.date)
-    latest_events = await nocodb_client.get_events_by_date(booking_data.date)
+    latest_bookings = await nocodb_client.get_bookings_by_date(parsed_date)
+    latest_events = await nocodb_client.get_events_by_date(parsed_date)
     
     # Рассчитываем актуальную загрузку
     timeline = booking_logic.calculate_timeline_load(latest_bookings, latest_events)
@@ -113,7 +115,7 @@ async def create_booking(booking_data: schemas.BookingCreate):
     # Форматируем всё в строки, которые ожидает NocoDB
     data_for_nocodb = {
         "Telegram": booking_data.telegram,
-        "Дата посещения": booking_data.date.strftime("%Y-%m-%d"),
+        "Дата посещения": parsed_date.strftime("%Y-%m-%d"),
         "Время начала": start_dt.strftime("%H:%M:%S"),
         "Время конца": end_dt.strftime("%H:%M:%S"),
         "Оборудование": booking_data.equipment,
