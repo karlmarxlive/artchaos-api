@@ -1,1 +1,10 @@
-*.env
+# Виртуальное окружение
+venv/
+
+# Кэш Python
+__pycache__/
+*.pyc
+
+.env
+
+.vscode/
