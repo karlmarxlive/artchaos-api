@@ -113,7 +113,7 @@ async def create_booking(booking_data: schemas.BookingCreate):
     # Форматируем всё в строки, которые ожидает NocoDB
     data_for_nocodb = {
         "Telegram": booking_data.telegram,
-        "Дата посещения": booking_data.date.strftime("%d-%m-%Y"),
+        "Дата посещения": booking_data.date.strftime("%Y-%m-%d"),
         "Время начала": start_dt.strftime("%H:%M:%S"),
         "Время конца": end_dt.strftime("%H:%M:%S"),
         "Оборудование": booking_data.equipment,
