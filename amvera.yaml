@@ -1,6 +1,7 @@
 meta:
   application: artchaos-api
   environment: python
+  version: 3.11
   requirements: requirements.txt
 
 run:
