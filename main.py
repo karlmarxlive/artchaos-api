@@ -51,7 +51,7 @@ async def get_start_times(
 @app.get("/api/v1/check_duration", response_class=Response)
 async def check_duration(
     date_str: str = Query(..., alias="date"), 
-    start_time: str, 
+    start_time: str = Query(...),
     equipment: str | None = Query(None)
 ):
     """
