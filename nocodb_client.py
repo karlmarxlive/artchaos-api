@@ -21,7 +21,7 @@ async def get_bookings_by_date(date: datetime.date) -> list:
     """Получает все бронирования (Bookings) на указанную дату."""
     
     date_field_name = "Дата посещения"
-    date_str = date.strftime("%Y-%m-%d")
+    date_str = date.strftime("%d-%m-%Y")
     filter_query = quote(f"({date_field_name},eq,exactDate,{date_str})")
     
     # Используем константу с ID таблицы
@@ -41,7 +41,7 @@ async def get_events_by_date(date: datetime.date) -> list:
     
     date_field_name = "Дата"
     blocking_field_name = "Занять мастерскую?"
-    date_str = date.strftime("%Y-%m-%d")
+    date_str = date.strftime("%d-%m-%Y")
     filter_query = quote(f"({date_field_name},eq,exactDate,{date_str})~and({blocking_field_name},is,true)")
     
     # Используем константу с ID таблицы

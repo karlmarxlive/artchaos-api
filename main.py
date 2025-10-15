@@ -14,15 +14,26 @@ app = FastAPI(
 )
 
 
+def parse_date_from_str(date_str: str) -> datetime.date:
+    """Парсит дату из строки формата 'dd.mm.yyyy'."""
+    try:
+        return datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
+    except ValueError:
+        # Если формат неверный, возвращаем ошибку 400 Bad Request
+        raise HTTPException(status_code=400, detail="Неверный формат даты. Ожидается dd.mm.yyyy")
+
+
 @app.get("/api/v1/available_start_times", response_class=Response)
 async def get_start_times(
-    date: datetime.date, 
+    date_str: str = Query(..., alias="date"), 
     equipment: str | None = Query(None)
 ):
     """
     Эндпоинт для получения доступных времен начала записи.
     Возвращает строку с временами через запятую, например: "10:00,10:30,14:00"
     """
+    date = parse_date_from_str(date_str)
+    
     # 1. Получаем данные из NocoDB
     bookings = await nocodb_client.get_bookings_by_date(date)
     events = await nocodb_client.get_events_by_date(date)
@@ -39,7 +50,7 @@ async def get_start_times(
 
 @app.get("/api/v1/check_duration", response_class=Response)
 async def check_duration(
-    date: datetime.date, 
+    date_str: str = Query(..., alias="date"), 
     start_time: str, 
     equipment: str | None = Query(None)
 ):
@@ -47,6 +58,8 @@ async def check_duration(
     Эндпоинт для проверки максимально возможной длительности записи.
     Возвращает число в виде строки, например: "2.5"
     """
+    date = parse_date_from_str(date_str)
+    
     # 1. Получаем данные из NocoDB
     bookings = await nocodb_client.get_bookings_by_date(date)
     events = await nocodb_client.get_events_by_date(date)
@@ -100,10 +113,11 @@ async def create_booking(booking_data: schemas.BookingCreate):
     # Форматируем всё в строки, которые ожидает NocoDB
     data_for_nocodb = {
         "Telegram": booking_data.telegram,
-        "Дата посещения": booking_data.date.strftime("%Y-%m-%d"),
+        "Дата посещения": booking_data.date.strftime("%d-%m-%Y"),
         "Время начала": start_dt.strftime("%H:%M:%S"),
         "Время конца": end_dt.strftime("%H:%M:%S"),
-        "Оборудование": booking_data.equipment
+        "Оборудование": booking_data.equipment,
+        "Что будет делать": booking_data.activity
     }
 
     # --- Шаг 3: Создание записи ---
