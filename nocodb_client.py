@@ -8,6 +8,7 @@ from config import settings
 BOOKINGS_TABLE_ID = "mgaqhk43i310jv7"
 EVENTS_TABLE_ID = "m3itfdcts4vcet8" 
 
+
 # --- Константы и базовые настройки ---
 BASE_URL = f"{settings.NOCODB_URL}/api/v2/tables"
 HEADERS = {
@@ -21,7 +22,7 @@ async def get_bookings_by_date(date: datetime.date) -> list:
     
     date_field_name = "Дата посещения"
     date_str = date.strftime("%Y-%m-%d")
-    filter_query = quote(f"({date_field_name},eq,{date_str})")
+    filter_query = quote(f"({date_field_name},eq,exactDate,{date_str})")
     
     # Используем константу с ID таблицы
     request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records?where={filter_query}"
@@ -41,7 +42,7 @@ async def get_events_by_date(date: datetime.date) -> list:
     date_field_name = "Дата"
     blocking_field_name = "Занять мастерскую?"
     date_str = date.strftime("%Y-%m-%d")
-    filter_query = quote(f"({date_field_name},eq,{date_str})and({blocking_field_name},is,true)")
+    filter_query = quote(f"({date_field_name},eq,exactDate,{date_str})~and({blocking_field_name},is,true)")
     
     # Используем константу с ID таблицы
     request_url = f"{BASE_URL}/{EVENTS_TABLE_ID}/records?where={filter_query}"
