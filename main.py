@@ -72,7 +72,7 @@ async def check_duration(
     max_duration = booking_logic.get_max_duration(start_time, timeline, equipment_required=equipment)
 
     # 4. Возвращаем результат в виде json
-    return {"result": str(max_duration)}
+    return {"result": max_duration}
 
 
 @app.post("/api/v1/bookings", status_code=201) # status_code=201 означает "Created"
