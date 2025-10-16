@@ -23,14 +23,14 @@ def parse_date_from_str(date_str: str) -> datetime.date:
         raise HTTPException(status_code=400, detail="Неверный формат даты. Ожидается dd.mm.yyyy")
 
 
-@app.get("/api/v1/available_start_times", response_class=Response)
+@app.get("/api/v1/available_start_times")
 async def get_start_times(
     date_str: str = Query(..., alias="date"), 
     equipment: str | None = Query(None)
 ):
     """
     Эндпоинт для получения доступных времен начала записи.
-    Возвращает строку с временами через запятую, например: "10:00,10:30,14:00"
+    Возвращает JSON вида {"result": "10:00,10:30,14:00"}
     """
     date = parse_date_from_str(date_str)
     
@@ -44,11 +44,12 @@ async def get_start_times(
     # 3. Получаем доступные слоты с учетом запрошенного оборудования
     available_times = booking_logic.get_available_start_times(timeline, equipment_required=equipment)
     
-    # 4. Формируем и возвращаем ответ в виде простого текста
-    return Response(content=",".join(available_times), media_type="text/plain")
+    # 4. Формируем и возвращаем ответ в виде json
+    result_string = ",".join(available_times)
+    return {"result": result_string}
 
 
-@app.get("/api/v1/check_duration", response_class=Response)
+@app.get("/api/v1/check_duration")
 async def check_duration(
     date_str: str = Query(..., alias="date"), 
     start_time: str = Query(...),
@@ -56,7 +57,7 @@ async def check_duration(
 ):
     """
     Эндпоинт для проверки максимально возможной длительности записи.
-    Возвращает число в виде строки, например: "2.5"
+    Возвращает JSON вида {"result": "2.5"}
     """
     date = parse_date_from_str(date_str)
     
@@ -70,8 +71,8 @@ async def check_duration(
     # 3. Рассчитываем максимальную длительность
     max_duration = booking_logic.get_max_duration(start_time, timeline, equipment_required=equipment)
 
-    # 4. Возвращаем результат в виде простого текста
-    return Response(content=str(max_duration), media_type="text/plain")
+    # 4. Возвращаем результат в виде json
+    return {"result": str(max_duration)}
 
 
 @app.post("/api/v1/bookings", status_code=201) # status_code=201 означает "Created"
