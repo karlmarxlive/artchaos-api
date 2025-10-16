@@ -136,4 +136,7 @@ async def create_booking(booking_data: schemas.BookingCreate):
         
     # --- Шаг 4: Успешный ответ ---
     
-    return {"status": "success", "booking_details": new_booking}
+    return {"status": "success", 
+            "booking_details": new_booking,
+            "end_time": end_dt.strftime("%H:%M")
+            }
