@@ -17,14 +17,13 @@ HEADERS = {
 
 # --- Функции для получения данных из NocoDB ---
 
-async def get_bookings_by_date(date: datetime.date) -> list:
-    """Получает все бронирования (Bookings) на указанную дату."""
+async def get_bookings_by_date(date_str: str) -> list:
+    """Получает все бронирования (Bookings) на указанную дату (поле — строка)."""
     
     date_field_name = "Дата посещения"
     # date_str = date.strftime("%Y-%m-%d")
-    filter_query = quote(f"({date_field_name},eq,exactDate,{date})")
+    filter_query = quote(f"({date_field_name},eq,{date_str})")
     
-    # Используем константу с ID таблицы
     request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records?where={filter_query}"
     
     async with httpx.AsyncClient() as client:
@@ -36,13 +35,14 @@ async def get_bookings_by_date(date: datetime.date) -> list:
             print(f"Ошибка при запросе к NocoDB (Bookings): {e}")
             return []
 
-async def get_events_by_date(date: datetime.date) -> list:
+async def get_events_by_date(date_str: str) -> list:
     """Получает все мероприятия (Events), которые блокируют мастерскую на указанную дату."""
     
     date_field_name = "Дата"
     blocking_field_name = "Занять мастерскую?"
     # date_str = date.strftime("%Y-%m-%d")
-    filter_query = quote(f"({date_field_name},eq,exactDate,{date})~and({blocking_field_name},is,true)")
+    
+    filter_query = quote(f"({date_field_name},eq,{date_str})~and({blocking_field_name},is,true)")
     
     # Используем константу с ID таблицы
     request_url = f"{BASE_URL}/{EVENTS_TABLE_ID}/records?where={filter_query}"
