@@ -6,8 +6,11 @@ WORKSHOP_OPEN_HOUR = 10  # Час открытия
 WORKSHOP_CLOSE_HOUR = 22 # Час закрытия
 TIME_STEP_MINUTES = 30   # Шаг для проверки слотов (30 минут)
 TOTAL_SPOTS = 8          # Всего мест в мастерской
+EVENT_BUFFER_MINUTES = 30 # Буфер по времени до и после мероприятий
+
 TOTAL_POTTERY_WHEELS = 2
 POTTERY_WHEEL_NAME = "Гончарный круг"
+
 
 # --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
@@ -51,11 +54,23 @@ def calculate_timeline_load(bookings: list, events: list) -> dict:
 
     # 1. Обрабатываем мероприятия, которые блокируют всю мастерскую
     for event in events:
-        start_time = str_to_time(event["Начало"])
-        end_time = str_to_time(event["Конец"])
+        start_time_obj = str_to_time(event["Начало"])
+        end_time_obj = str_to_time(event["Конец"])
+        
+        # Для вычитания и сложения времени нам нужны объекты datetime, а не time
+        today = datetime.date.today()
+        start_dt = datetime.datetime.combine(today, start_time_obj)
+        end_dt = datetime.datetime.combine(today, end_time_obj)
+        
+        # Рассчитываем буферное время
+        buffer = datetime.timedelta(minutes=EVENT_BUFFER_MINUTES)
+        
+        # Вычисляем новый, расширенный диапазон блокировки
+        buffered_start_time = (start_dt - buffer).time()
+        buffered_end_time = (end_dt + buffer).time()
         
         for slot_time in timeline:
-            if start_time <= slot_time < end_time:
+            if buffered_start_time <= slot_time < buffered_end_time:
                 timeline[slot_time]["is_blocked_by_event"] = True
 
     # 2. Обрабатываем индивидуальные бронирования
