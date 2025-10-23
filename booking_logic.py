@@ -1,4 +1,5 @@
 import datetime
+from zoneinfo import ZoneInfo
 
 # --- КОНСТАНТЫ И НАСТРОЙКИ МАСТЕРСКОЙ ---
 
@@ -10,6 +11,8 @@ EVENT_BUFFER_MINUTES = 30 # Буфер по времени до и после м
 
 TOTAL_POTTERY_WHEELS = 2
 POTTERY_WHEEL_NAME = "Гончарный круг"
+
+WORKSHOP_TIMEZONE = ZoneInfo("Asia/Novosibirsk")
 
 
 # --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
@@ -98,7 +101,8 @@ def get_available_start_times(timeline: dict, request_date: datetime.date, equip
     available_times = []
     
     today = datetime.date.today()
-    current_time = datetime.datetime.now().time()
+    current_time = datetime.datetime.now(WORKSHOP_TIMEZONE).time()
+
     
     for slot_time, load_info in timeline.items():
         # Базовое условие: слот не заблокирован и есть общие места
