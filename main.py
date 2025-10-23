@@ -32,7 +32,7 @@ async def get_start_times(
     Эндпоинт для получения доступных времен начала записи.
     Возвращает JSON вида {"result": "10:00,10:30,14:00"}
     """
-    parse_date_from_str(date_str)
+    date = parse_date_from_str(date_str)
     
     # 1. Получаем данные из NocoDB
     bookings = await nocodb_client.get_bookings_by_date(date_str)
@@ -42,7 +42,7 @@ async def get_start_times(
     timeline = booking_logic.calculate_timeline_load(bookings, events)
     
     # 3. Получаем доступные слоты с учетом запрошенного оборудования
-    available_times = booking_logic.get_available_start_times(timeline, equipment_required=equipment)
+    available_times = booking_logic.get_available_start_times(timeline, date, equipment_required=equipment)
     
     # 4. Формируем и возвращаем ответ в виде json
     result_string = ",".join(available_times)

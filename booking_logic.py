@@ -89,18 +89,26 @@ def calculate_timeline_load(bookings: list, events: list) -> dict:
     return timeline
 
 
-def get_available_start_times(timeline: dict, equipment_required: str | None = None) -> list[str]:
+def get_available_start_times(timeline: dict, request_date: datetime.date, equipment_required: str | None = None) -> list[str]:
     """
     Находит доступные времена для НАЧАЛА записи.
     Если указано equipment_required, проверяет и его доступность.
+    Фильтрует прошедшие слоты для текущего дня.
     """
     available_times = []
+    
+    today = datetime.date.today()
+    current_time = datetime.datetime.now().time()
+    
     for slot_time, load_info in timeline.items():
         # Базовое условие: слот не заблокирован и есть общие места
         is_available = not load_info["is_blocked_by_event"] and load_info["people_count"] < TOTAL_SPOTS
         
         if equipment_required == POTTERY_WHEEL_NAME:
             is_available = is_available and (load_info["pottery_wheels_used"] < TOTAL_POTTERY_WHEELS)
+            
+        if request_date == today and slot_time <= current_time:
+            is_available = False
         
         if is_available:
             available_times.append(slot_time.strftime("%H:%M"))
