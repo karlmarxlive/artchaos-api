@@ -17,6 +17,25 @@ HEADERS = {
 
 # --- Функции для получения данных из NocoDB ---
 
+async def get_all_bookings_by_username(username: str) -> list:
+    """Получает ВСЕ бронирования для указанного username."""
+    
+    username_field_name = "Telegram"
+    
+    # Фильтр для точного совпадения по полю "Telegram"
+    filter_query = quote(f"({username_field_name},eq,{username})")
+    
+    request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records?where={filter_query}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status() 
+            return response.json().get("list", [])
+        except httpx.HTTPStatusError as e:
+            print(f"Ошибка при запросе к NocoDB (all bookings by username): {e}")
+            return []
+
 async def get_bookings_by_date(date_str: str) -> list:
     """Получает все бронирования (Bookings) на указанную дату (поле — строка)."""
     

@@ -13,6 +13,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
+USER_BOOKING_CACHE = {}
 
 def parse_date_from_str(date_str: str) -> datetime.date:
     """Парсит дату из строки формата 'dd.mm.yyyy'."""
@@ -140,3 +141,67 @@ async def create_booking(booking_data: schemas.BookingCreate):
             "booking_details": new_booking,
             "end_time": end_dt.strftime("%H:%M")
             }
+    
+    
+@app.get("/api/v1/my_bookings")
+async def get_my_bookings(username: str):
+    """
+    Находит будущие брони пользователя, форматирует их в красивую строку
+    и кэширует ID броней для последующей отмены.
+    """
+    all_bookings = await nocodb_client.get_all_bookings_by_username(username)
+    
+    # --- Фильтрация и сортировка ---
+    future_bookings = []
+    now_aware = datetime.datetime.now(booking_logic.WORKSHOP_TIMEZONE)
+
+    for booking in all_bookings:
+        try:
+            # Собираем дату и время брони в один объект для сравнения
+            booking_date = datetime.datetime.strptime(booking["Дата посещения"], "%d.%m.%Y").date()
+            booking_time = datetime.datetime.strptime(booking["Время начала"], "%H:%M:%S").time()
+            booking_datetime = datetime.datetime.combine(booking_date, booking_time)
+            
+            # Делаем объект "осведомленным" о часовом поясе для корректного сравнения
+            booking_datetime_aware = booking_datetime.replace(tzinfo=booking_logic.WORKSHOP_TIMEZONE)
+
+            if booking_datetime_aware > now_aware:
+                future_bookings.append(booking)
+        except (ValueError, KeyError):
+            # Пропускаем записи с некорректным форматом даты/времени, если такие есть
+            continue
+
+    # Сортируем от ближайшей к самой дальней
+    future_bookings.sort(key=lambda b: (
+        datetime.datetime.strptime(b["Дата посещения"], "%d.%m.%Y"),
+        datetime.datetime.strptime(b["Время начала"], "%H:%M:%S")
+    ))
+
+    # --- Форматирование ответа и создание кэша ---
+    if not future_bookings:
+        no_bookings_text = "У тебя пока нет записей.\nХочешь записаться? 👇"
+        return {"result": no_bookings_text}
+
+    formatted_lines = ["*Твои записи:* \n"]
+    booking_map = {} # Карта для кэша: "1" -> "recAbc123"
+
+    for i, booking in enumerate(future_bookings, 1):
+        # Форматируем время начала, убирая секунды
+        start_time_short = booking['Время начала'][:5]
+        line = f"*{i}.* 📅 *{booking['Дата посещения']}* в *{start_time_short}*"
+        
+        # Добавляем информацию об оборудовании, если она есть
+        if booking.get("Оборудование"):
+            line += f" (📍 {booking['Оборудование']})"
+            
+        formatted_lines.append(line)
+        booking_map[str(i)] = booking['Id']
+
+    # Сохраняем карту в кэш
+    USER_BOOKING_CACHE[username] = {
+        "map": booking_map,
+        "timestamp": datetime.datetime.now()
+    }
+
+    final_text = "\n".join(formatted_lines)
+    return {"result": final_text}
