@@ -182,13 +182,13 @@ async def get_my_bookings(username: str):
         no_bookings_text = "У тебя пока нет записей.\nХочешь записаться? 👇"
         return {"result": no_bookings_text}
 
-    formatted_lines = ["*Твои записи:* \n"]
+    formatted_lines = ["Твои записи: \n"]
     booking_map = {} # Карта для кэша: "1" -> "recAbc123"
 
     for i, booking in enumerate(future_bookings, 1):
         # Форматируем время начала, убирая секунды
         start_time_short = booking['Время начала'][:5]
-        line = f"{i}. 📆 **{booking['Дата посещения']}** в {start_time_short}"
+        line = f"{i}. 📆 {booking['Дата посещения']} в {start_time_short}"
         
         # Добавляем информацию об оборудовании, если она есть
         if booking.get("Оборудование"):
@@ -197,7 +197,7 @@ async def get_my_bookings(username: str):
         activity_description = booking.get("Что будет делать")
         if activity_description:
             # Добавляем описание с новой строки с отступом и в курсиве
-            line += f"\n  📝 __{activity_description}__"
+            line += f"\n  📝 {activity_description}"
             
         formatted_lines.append(line)
         booking_map[str(i)] = booking['Id']
