@@ -188,11 +188,16 @@ async def get_my_bookings(username: str):
     for i, booking in enumerate(future_bookings, 1):
         # Форматируем время начала, убирая секунды
         start_time_short = booking['Время начала'][:5]
-        line = f"*{i}.* 📅 *{booking['Дата посещения']}* в *{start_time_short}*"
+        line = f"{i}. 📆 **{booking['Дата посещения']}** в {start_time_short}"
         
         # Добавляем информацию об оборудовании, если она есть
         if booking.get("Оборудование"):
             line += f" (📍 {booking['Оборудование']})"
+            
+        activity_description = booking.get("Что будет делать")
+        if activity_description:
+            # Добавляем описание с новой строки с отступом и в курсиве
+            line += f"\n  📝 __{activity_description}__"
             
         formatted_lines.append(line)
         booking_map[str(i)] = booking['Id']
@@ -203,5 +208,5 @@ async def get_my_bookings(username: str):
         "timestamp": datetime.datetime.now()
     }
 
-    final_text = "\n".join(formatted_lines)
+    final_text = "\n\n".join(formatted_lines)
     return {"result": final_text}
