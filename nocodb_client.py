@@ -90,3 +90,25 @@ async def create_booking(booking_data: dict) -> dict | None:
             print(f"Ошибка при создании записи в NocoDB: {e}")
             print(f"Тело ответа: {e.response.text}")
             return None
+        
+        
+async def delete_booking_by_id(booking_id: str) -> bool:
+    """Удаляет запись из Bookings по ее уникальному ID."""
+    
+    request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            # NocoDB API v2 для удаления требует передавать ID в теле запроса
+            response = await client.request("DELETE", request_url, headers=HEADERS, json={"Id": booking_id})
+            
+            response.raise_for_status()
+            
+            return True
+        except httpx.HTTPStatusError as e:
+            print(f"Ошибка при удалении записи {booking_id} из NocoDB: {e}")
+            print(f"Тело ответа: {e.response.text}")
+            return False
+        except Exception as e:
+            print(f"Неизвестная ошибка при удалении: {e}")
+            return False

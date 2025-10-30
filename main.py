@@ -14,6 +14,7 @@ app = FastAPI(
 )
 
 USER_BOOKING_CACHE = {}
+CACHE_LIFETIME_MINUTES = 30
 
 def parse_date_from_str(date_str: str) -> datetime.date:
     """Парсит дату из строки формата 'dd.mm.yyyy'."""
@@ -210,3 +211,53 @@ async def get_my_bookings(username: str):
 
     final_text = "\n\n".join(formatted_lines)
     return {"result": final_text}
+
+
+@app.post("/api/v1/cancel_booking")
+async def cancel_booking(cancel_data: schemas.BookingCancel):
+    """
+    Отменяет бронь пользователя, используя номер из кэшированного списка.
+    """
+    username = cancel_data.username
+    booking_number = cancel_data.booking_number
+    
+    # --- Сценарий: Кэш не найден или устарел ---
+    cached_user_data = USER_BOOKING_CACHE.get(username)
+    
+    if not cached_user_data:
+        return {
+            "status": "error",
+            "message": "Список записей устарел. Пожалуйста, открой 'Мои записи' и попробуй снова."
+        }
+    
+    cache_age = datetime.datetime.now() - cached_user_data["timestamp"]
+    if cache_age > timedelta(minutes=CACHE_LIFETIME_MINUTES):
+        del USER_BOOKING_CACHE[username] # Чистим устаревший кэш
+        return {
+            "status": "error",
+            "message": "Список записей устарел (прошло более 30 минут). Пожалуйста, открой 'Мои записи' и попробуй снова."
+        }
+
+    # --- Сценарий: Номер записи не найден в кэше ---
+    booking_id_to_delete = cached_user_data["map"].get(booking_number)
+    
+    if not booking_id_to_delete:
+        return {
+            "status": "error",
+            "message": f"Записи с номером {booking_number} не найдено в твоём списке. Пожалуйста, проверь номер и попробуй снова."
+        }
+        
+    # --- Сценарий: Успешное удаление ---
+    success = await nocodb_client.delete_booking_by_id(booking_id_to_delete)
+    
+    if success:
+        del USER_BOOKING_CACHE[username]
+        return {
+            "status": "success",
+            "message": "✅ Запись успешно отменена!"
+        }
+    else:
+        return {
+            "status": "error",
+            "message": "Возникла проблема при отмене брони. Пожалуйста, свяжись с @egor_savenko"
+        }

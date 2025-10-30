@@ -9,3 +9,8 @@ class BookingCreate(BaseModel):
     duration_hours: float
     activity: str | None = ""
     equipment: str | None = None 
+    
+
+class BookingCancel(BaseModel):
+    username: str
+    booking_number: str
