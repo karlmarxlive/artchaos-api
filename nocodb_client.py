@@ -35,6 +35,26 @@ async def get_all_bookings_by_username(username: str) -> list:
         except httpx.HTTPStatusError as e:
             print(f"Ошибка при запросе к NocoDB (all bookings by username): {e}")
             return []
+        
+async def get_all_bookings_by_telegram_id(telegram_id: str) -> list:
+    """Получает ВСЕ бронирования для указанного Telegram ID."""
+    
+    # Название новой колонки в NocoDB
+    id_field_name = "Telegram ID"
+    
+    # Фильтр для точного совпадения по полю "Telegram ID"
+    filter_query = quote(f"({id_field_name},eq,{telegram_id})")
+    
+    request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records?where={filter_query}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status() 
+            return response.json().get("list", [])
+        except httpx.HTTPStatusError as e:
+            print(f"Ошибка при запросе к NocoDB (all bookings by telegram_id): {e}")
+            return []
 
 async def get_bookings_by_date(date_str: str) -> list:
     """Получает все бронирования (Bookings) на указанную дату (поле — строка)."""

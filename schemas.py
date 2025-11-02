@@ -3,7 +3,9 @@ from pydantic import BaseModel
 
 
 class BookingCreate(BaseModel):
+    telegram_id: str
     telegram: str
+    fullname: str
     date: str
     start_time: str 
     duration_hours: float
@@ -12,5 +14,5 @@ class BookingCreate(BaseModel):
     
 
 class BookingCancel(BaseModel):
-    username: str
+    telegram_id: str
     booking_number: str

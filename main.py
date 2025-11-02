@@ -84,7 +84,6 @@ async def create_booking(booking_data: schemas.BookingCreate):
     """
     
     parse_date_from_str(booking_data.date)
-    # --- Шаг 1: Повторная проверка доступности (защита от "гонки") ---
     
     # Получаем самые свежие данные из NocoDB
     latest_bookings = await nocodb_client.get_bookings_by_date(booking_data.date)
@@ -107,36 +106,35 @@ async def create_booking(booking_data: schemas.BookingCreate):
             status_code=409, # 409 Conflict - подходящий код для этой ситуации
             detail="Извините, это время или его часть только что заняли. Пожалуйста, попробуйте выбрать время заново."
         )
-
-    # --- Шаг 2: Подготовка данных для NocoDB ---
     
     # Рассчитываем время окончания
     start_dt = datetime.datetime.strptime(booking_data.start_time, "%H:%M")
     duration = timedelta(hours=booking_data.duration_hours)
     end_dt = start_dt + duration
     
+    telegram_field_value = booking_data.telegram
+    if booking_data.telegram == "—":
+        telegram_field_value = booking_data.fullname
+    
     # Форматируем всё в строки, которые ожидает NocoDB
     data_for_nocodb = {
-        "Telegram": booking_data.telegram,
+        "Telegram": telegram_field_value,
         "Дата посещения": booking_data.date,
         "Время начала": start_dt.strftime("%H:%M:%S"),
         "Время конца": end_dt.strftime("%H:%M:%S"),
         "Оборудование": booking_data.equipment,
-        "Что будет делать": booking_data.activity
+        "Что будет делать": booking_data.activity,
+        "Telegram ID": booking_data.telegram_id
     }
-
-    # --- Шаг 3: Создание записи ---
     
     new_booking = await nocodb_client.create_booking(data_for_nocodb)
     
     if not new_booking:
-        # Если по какой-то причине запись не создалась, возвращаем ошибку сервера
         raise HTTPException(
             status_code=500,
-            detail="Не удалось создать запись в базе данных. Пожалуйста, свяжитесь с администратором."
+            detail="Не удалось создать запись в базе данных. Пожалуйста, свяжиcь с @egor_savenko"
         )
         
-    # --- Шаг 4: Успешный ответ ---
     
     return {"status": "success", 
             "booking_details": new_booking,
@@ -145,12 +143,12 @@ async def create_booking(booking_data: schemas.BookingCreate):
     
     
 @app.get("/api/v1/my_bookings")
-async def get_my_bookings(username: str):
+async def get_my_bookings(telegram_id: str):
     """
-    Находит будущие брони пользователя, форматирует их в красивую строку
+    Находит будущие брони пользователя по Telegram ID, форматирует их в красивую строку
     и кэширует ID броней для последующей отмены.
     """
-    all_bookings = await nocodb_client.get_all_bookings_by_username(username)
+    all_bookings = await nocodb_client.get_all_bookings_by_telegram_id(telegram_id)
     
     # --- Фильтрация и сортировка ---
     future_bookings = []
@@ -204,7 +202,7 @@ async def get_my_bookings(username: str):
         booking_map[str(i)] = booking['Id']
 
     # Сохраняем карту в кэш
-    USER_BOOKING_CACHE[username] = {
+    USER_BOOKING_CACHE[telegram_id] = {
         "map": booking_map,
         "timestamp": datetime.datetime.now()
     }
@@ -218,11 +216,11 @@ async def cancel_booking(cancel_data: schemas.BookingCancel):
     """
     Отменяет бронь пользователя, используя номер из кэшированного списка.
     """
-    username = cancel_data.username
+    telegram_id = cancel_data.telegram_id
     booking_number = cancel_data.booking_number
     
     # --- Сценарий: Кэш не найден или устарел ---
-    cached_user_data = USER_BOOKING_CACHE.get(username)
+    cached_user_data = USER_BOOKING_CACHE.get(telegram_id)
     
     if not cached_user_data:
         return {
@@ -232,7 +230,7 @@ async def cancel_booking(cancel_data: schemas.BookingCancel):
     
     cache_age = datetime.datetime.now() - cached_user_data["timestamp"]
     if cache_age > timedelta(minutes=CACHE_LIFETIME_MINUTES):
-        del USER_BOOKING_CACHE[username] # Чистим устаревший кэш
+        del USER_BOOKING_CACHE[telegram_id] # Чистим устаревший кэш
         return {
             "status": "error",
             "message": "Список записей устарел (прошло более 30 минут). Пожалуйста, открой 'Мои записи' и попробуй снова."
@@ -251,7 +249,7 @@ async def cancel_booking(cancel_data: schemas.BookingCancel):
     success = await nocodb_client.delete_booking_by_id(booking_id_to_delete)
     
     if success:
-        del USER_BOOKING_CACHE[username]
+        del USER_BOOKING_CACHE[telegram_id]
         return {
             "status": "success",
             "message": "✅ Запись успешно отменена!"
