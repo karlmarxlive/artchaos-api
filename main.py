@@ -113,7 +113,7 @@ async def create_booking(booking_data: schemas.BookingCreate):
     end_dt = start_dt + duration
     
     telegram_field_value = booking_data.telegram
-    if booking_data.telegram == "—":
+    if booking_data.telegram == "—" or booking_data.telegram == "":
         telegram_field_value = booking_data.fullname
     
     # Форматируем всё в строки, которые ожидает NocoDB
