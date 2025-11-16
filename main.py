@@ -42,7 +42,7 @@ async def get_start_times(
     
     # Случай 1: У пользователя вообще нет абонемента
     if not abonement_data:
-        return {"result": "❌ У вас не найден действующий абонемент."}
+        return {"result": "❌ У тебя не найден действующий абонемент :( Пожалуйста, напиши об этой ошибке @egor_savenko"}
         
     days_left = abonement_data.get("Осталось дней", 0)
     
@@ -50,10 +50,10 @@ async def get_start_times(
     delta_days = (requested_date - today).days
     
     if delta_days < 0:
-        return {"result": "❌ Нельзя записаться на прошедшую дату."}
+        return {"result": "❌ Нельзя записаться на прошедшую дату. Пожалуйста, напиши об этой ошибке @egor_savenko"}
 
     if delta_days > days_left:
-        return {"result": f"❌ Ваш абонемент истекает раньше, чем {date_str}. Вы можете записаться на даты в пределах оставшихся {days_left} дней."}
+        return {"result": f"❌ Твой абонемент истекает раньше, чем {date_str}. Ты можешь записаться на даты в пределах оставшихся {days_left} дней."}
 
     
     bookings = await nocodb_client.get_bookings_by_date(date_str)
@@ -63,7 +63,7 @@ async def get_start_times(
     available_times = booking_logic.get_available_start_times(timeline, requested_date, equipment_required=equipment)
     
     if not available_times:
-        return {"result": f"❌ На {date_str} нет свободных мест. Попробуйте выбрать другую дату."}
+        return {"result": f"❌ На {date_str} нет свободных мест. Попробуй выбрать другую дату."}
 
     result_string = ",".join(available_times)
     return {"result": result_string}
