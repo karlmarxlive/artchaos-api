@@ -7,6 +7,7 @@ from config import settings
 # --- КОНСТАНТЫ: ID ТАБЛИЦ В NOCODB ---
 BOOKINGS_TABLE_ID = "mgaqhk43i310jv7"
 EVENTS_TABLE_ID = "m3itfdcts4vcet8" 
+ABONEMENTS_TABLE_ID = "moy99x4xmd1oaxd"
 
 
 # --- Константы и базовые настройки ---
@@ -132,3 +133,27 @@ async def delete_booking_by_id(booking_id: str) -> bool:
         except Exception as e:
             print(f"Неизвестная ошибка при удалении: {e}")
             return False
+        
+
+async def get_abonement_by_telegram_id(telegram_id: str) -> dict | None:
+    """
+    Находит абонемент пользователя по его Telegram ID.
+    Если найдено несколько - возвращает первый.
+    """
+    id_field_name = "Telegram ID"
+    filter_query = quote(f"({id_field_name},eq,{telegram_id})")
+    
+    request_url = f"{BASE_URL}/{ABONEMENTS_TABLE_ID}/records?where={filter_query}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status()
+            
+            results = response.json().get("list", [])
+            if results:
+                return results[0]
+            return None
+        except httpx.HTTPStatusError as e:
+            print(f"Ошибка при запросе к NocoDB (Abonements): {e}")
+            return None

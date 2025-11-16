@@ -28,25 +28,43 @@ def parse_date_from_str(date_str: str) -> datetime.date:
 @app.get("/api/v1/available_start_times")
 async def get_start_times(
     date_str: str = Query(..., alias="date"), 
+    telegram_id: str = Query(..., alias="telegram_id"),
     equipment: str | None = Query(None)
 ):
     """
     Эндпоинт для получения доступных времен начала записи.
+    Проверяет, действует ли абонемент пользователя на запрашиваемую дату.
     Возвращает JSON вида {"result": "10:00,10:30,14:00"}
     """
-    date = parse_date_from_str(date_str)
+    requested_date = parse_date_from_str(date_str)
     
-    # 1. Получаем данные из NocoDB
+    abonement_data = await nocodb_client.get_abonement_by_telegram_id(telegram_id)
+    
+    # Случай 1: У пользователя вообще нет абонемента
+    if not abonement_data:
+        return {"result": "❌ У вас не найден действующий абонемент."}
+        
+    days_left = abonement_data.get("Осталось дней", 0)
+    
+    today = datetime.date.today()
+    delta_days = (requested_date - today).days
+    
+    if delta_days < 0:
+        return {"result": "❌ Нельзя записаться на прошедшую дату."}
+
+    if delta_days > days_left:
+        return {"result": f"❌ Ваш абонемент истекает раньше, чем {date_str}. Вы можете записаться на даты в пределах оставшихся {days_left} дней."}
+
+    
     bookings = await nocodb_client.get_bookings_by_date(date_str)
     events = await nocodb_client.get_events_by_date(date_str)
-    
-    # 2. Рассчитываем таймлайн
     timeline = booking_logic.calculate_timeline_load(bookings, events)
     
-    # 3. Получаем доступные слоты с учетом запрошенного оборудования
-    available_times = booking_logic.get_available_start_times(timeline, date, equipment_required=equipment)
+    available_times = booking_logic.get_available_start_times(timeline, requested_date, equipment_required=equipment)
     
-    # 4. Формируем и возвращаем ответ в виде json
+    if not available_times:
+        return {"result": f"❌ На {date_str} нет свободных мест. Попробуйте выбрать другую дату."}
+
     result_string = ",".join(available_times)
     return {"result": result_string}
 
