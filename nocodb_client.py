@@ -23,7 +23,6 @@ async def get_all_bookings_by_username(username: str) -> list:
     
     username_field_name = "Telegram"
     
-    # Фильтр для точного совпадения по полю "Telegram"
     filter_query = quote(f"({username_field_name},eq,{username})")
     
     request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records?where={filter_query}"
@@ -40,10 +39,8 @@ async def get_all_bookings_by_username(username: str) -> list:
 async def get_all_bookings_by_telegram_id(telegram_id: str) -> list:
     """Получает ВСЕ бронирования для указанного Telegram ID."""
     
-    # Название новой колонки в NocoDB
     id_field_name = "Telegram ID"
     
-    # Фильтр для точного совпадения по полю "Telegram ID"
     filter_query = quote(f"({id_field_name},eq,{telegram_id})")
     
     request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records?where={filter_query}"
@@ -84,7 +81,6 @@ async def get_events_by_date(date_str: str) -> list:
     
     filter_query = quote(f"({date_field_name},eq,{date_str})~and({blocking_field_name},is,true)")
     
-    # Используем константу с ID таблицы
     request_url = f"{BASE_URL}/{EVENTS_TABLE_ID}/records?where={filter_query}"
     
     async with httpx.AsyncClient() as client:
@@ -99,7 +95,6 @@ async def get_events_by_date(date_str: str) -> list:
 async def create_booking(booking_data: dict) -> dict | None:
     """Создает новую запись в таблице Bookings."""
     
-    # Используем константу с ID таблицы
     request_url = f"{BASE_URL}/{BOOKINGS_TABLE_ID}/records"
     
     async with httpx.AsyncClient() as client:
@@ -120,7 +115,6 @@ async def delete_booking_by_id(booking_id: str) -> bool:
     
     async with httpx.AsyncClient() as client:
         try:
-            # NocoDB API v2 для удаления требует передавать ID в теле запроса
             response = await client.request("DELETE", request_url, headers=HEADERS, json={"Id": booking_id})
             
             response.raise_for_status()

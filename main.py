@@ -21,7 +21,6 @@ def parse_date_from_str(date_str: str) -> datetime.date:
     try:
         return datetime.datetime.strptime(date_str, "%d.%m.%Y").date()
     except ValueError:
-        # Если формат неверный, возвращаем ошибку 400 Bad Request
         raise HTTPException(status_code=400, detail="Неверный формат даты. Ожидается dd.mm.yyyy")
 
 
@@ -40,7 +39,6 @@ async def get_start_times(
     
     abonement_data = await nocodb_client.get_abonement_by_telegram_id(telegram_id)
     
-    # Случай 1: У пользователя вообще нет абонемента
     if not abonement_data:
         return {"result": "❌ У тебя не найден действующий абонемент :( Пожалуйста, напиши об этой ошибке @egor_savenko"}
         
@@ -81,17 +79,13 @@ async def check_duration(
     """
     parse_date_from_str(date_str)
     
-    # 1. Получаем данные из NocoDB
     bookings = await nocodb_client.get_bookings_by_date(date_str)
     events = await nocodb_client.get_events_by_date(date_str)
     
-    # 2. Рассчитываем таймлайн
     timeline = booking_logic.calculate_timeline_load(bookings, events)
     
-    # 3. Рассчитываем максимальную длительность
     max_duration = booking_logic.get_max_duration(start_time, timeline, equipment_required=equipment)
 
-    # 4. Возвращаем результат в виде json
     return {"result": max_duration}
 
 
@@ -103,29 +97,23 @@ async def create_booking(booking_data: schemas.BookingCreate):
     
     parse_date_from_str(booking_data.date)
     
-    # Получаем самые свежие данные из NocoDB
     latest_bookings = await nocodb_client.get_bookings_by_date(booking_data.date)
     latest_events = await nocodb_client.get_events_by_date(booking_data.date)
     
-    # Рассчитываем актуальную загрузку
     timeline = booking_logic.calculate_timeline_load(latest_bookings, latest_events)
     
-    # Рассчитываем, какая максимальная длительность доступна ПРЯМО СЕЙЧАС
     current_max_duration = booking_logic.get_max_duration(
         start_time_str=booking_data.start_time,
         timeline=timeline,
         equipment_required=booking_data.equipment
     )
     
-    # Если пользователь хочет забронировать больше времени, чем сейчас доступно,
-    # значит, слот уже заняли.
     if booking_data.duration_hours > current_max_duration:
         raise HTTPException(
             status_code=409, # 409 Conflict - подходящий код для этой ситуации
             detail="Извините, это время или его часть только что заняли. Пожалуйста, попробуйте выбрать время заново."
         )
     
-    # Рассчитываем время окончания
     start_dt = datetime.datetime.strptime(booking_data.start_time, "%H:%M")
     duration = timedelta(hours=booking_data.duration_hours)
     end_dt = start_dt + duration
@@ -134,7 +122,6 @@ async def create_booking(booking_data: schemas.BookingCreate):
     if booking_data.telegram == "—" or booking_data.telegram == "":
         telegram_field_value = booking_data.fullname
     
-    # Форматируем всё в строки, которые ожидает NocoDB
     data_for_nocodb = {
         "Telegram": telegram_field_value,
         "Дата посещения": booking_data.date,
@@ -174,18 +161,15 @@ async def get_my_bookings(telegram_id: str):
 
     for booking in all_bookings:
         try:
-            # Собираем дату и время брони в один объект для сравнения
             booking_date = datetime.datetime.strptime(booking["Дата посещения"], "%d.%m.%Y").date()
             booking_time = datetime.datetime.strptime(booking["Время начала"], "%H:%M:%S").time()
             booking_datetime = datetime.datetime.combine(booking_date, booking_time)
             
-            # Делаем объект "осведомленным" о часовом поясе для корректного сравнения
             booking_datetime_aware = booking_datetime.replace(tzinfo=booking_logic.WORKSHOP_TIMEZONE)
 
             if booking_datetime_aware > now_aware:
                 future_bookings.append(booking)
         except (ValueError, KeyError):
-            # Пропускаем записи с некорректным форматом даты/времени, если такие есть
             continue
 
     # Сортируем от ближайшей к самой дальней
@@ -194,32 +178,27 @@ async def get_my_bookings(telegram_id: str):
         datetime.datetime.strptime(b["Время начала"], "%H:%M:%S")
     ))
 
-    # --- Форматирование ответа и создание кэша ---
     if not future_bookings:
         no_bookings_text = "У тебя пока нет записей.\nХочешь записаться? 👇"
         return {"result": no_bookings_text}
 
     formatted_lines = ["Твои записи: \n"]
-    booking_map = {} # Карта для кэша: "1" -> "recAbc123"
+    booking_map = {} 
 
     for i, booking in enumerate(future_bookings, 1):
-        # Форматируем время начала, убирая секунды
         start_time_short = booking['Время начала'][:5]
         line = f"{i}. 📆 {booking['Дата посещения']} в {start_time_short}"
         
-        # Добавляем информацию об оборудовании, если она есть
         if booking.get("Оборудование"):
             line += f" (📍 {booking['Оборудование']})"
             
         activity_description = booking.get("Что будет делать")
         if activity_description:
-            # Добавляем описание с новой строки с отступом и в курсиве
             line += f"\n  📝 {activity_description}"
             
         formatted_lines.append(line)
         booking_map[str(i)] = booking['Id']
 
-    # Сохраняем карту в кэш
     USER_BOOKING_CACHE[telegram_id] = {
         "map": booking_map,
         "timestamp": datetime.datetime.now()

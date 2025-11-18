@@ -3,10 +3,10 @@ from zoneinfo import ZoneInfo
 
 # --- КОНСТАНТЫ И НАСТРОЙКИ МАСТЕРСКОЙ ---
 
-WORKSHOP_OPEN_HOUR = 10  # Час открытия
-WORKSHOP_CLOSE_HOUR = 22 # Час закрытия
-TIME_STEP_MINUTES = 30   # Шаг для проверки слотов (30 минут)
-TOTAL_SPOTS = 8          # Всего мест в мастерской
+WORKSHOP_OPEN_HOUR = 10   # Час открытия
+WORKSHOP_CLOSE_HOUR = 22  # Час закрытия
+TIME_STEP_MINUTES = 30    # Шаг для проверки слотов (30 минут)
+TOTAL_SPOTS = 8           # Всего мест в мастерской
 EVENT_BUFFER_MINUTES = 30 # Буфер по времени до и после мероприятий
 
 TOTAL_POTTERY_WHEELS = 2
@@ -55,20 +55,16 @@ def calculate_timeline_load(bookings: list, events: list) -> dict:
     """
     timeline = generate_timeline()
 
-    # 1. Обрабатываем мероприятия, которые блокируют всю мастерскую
     for event in events:
         start_time_obj = str_to_time(event["Начало"])
         end_time_obj = str_to_time(event["Конец"])
         
-        # Для вычитания и сложения времени нам нужны объекты datetime, а не time
         today = datetime.date.today()
         start_dt = datetime.datetime.combine(today, start_time_obj)
         end_dt = datetime.datetime.combine(today, end_time_obj)
         
-        # Рассчитываем буферное время
         buffer = datetime.timedelta(minutes=EVENT_BUFFER_MINUTES)
         
-        # Вычисляем новый, расширенный диапазон блокировки
         buffered_start_time = (start_dt - buffer).time()
         buffered_end_time = (end_dt + buffer).time()
         
@@ -76,13 +72,11 @@ def calculate_timeline_load(bookings: list, events: list) -> dict:
             if buffered_start_time <= slot_time < buffered_end_time:
                 timeline[slot_time]["is_blocked_by_event"] = True
 
-    # 2. Обрабатываем индивидуальные бронирования
     for booking in bookings:
         start_time = str_to_time(booking["Время начала"])
         end_time = str_to_time(booking["Время конца"])
 
         for slot_time in timeline:
-            # Если слот попадает в интервал бронирования, увеличиваем счетчик людей
             if start_time <= slot_time < end_time:
                 timeline[slot_time]["people_count"] += 1
                 
@@ -105,7 +99,6 @@ def get_available_start_times(timeline: dict, request_date: datetime.date, equip
 
     
     for slot_time, load_info in timeline.items():
-        # Базовое условие: слот не заблокирован и есть общие места
         is_available = not load_info["is_blocked_by_event"] and load_info["people_count"] < TOTAL_SPOTS
         
         if equipment_required == POTTERY_WHEEL_NAME:
@@ -141,11 +134,9 @@ def get_max_duration(start_time_str: str, timeline: dict, equipment_required: st
     for i in range(start_index, len(sorted_slots)):
         slot_time = sorted_slots[i]
         load_info = timeline[slot_time]
-        
-        # Проверяем общие места
+
         is_slot_ok = not load_info["is_blocked_by_event"] and load_info["people_count"] < TOTAL_SPOTS
         
-        # Если нужно оборудование, добавляем проверку
         if equipment_required == POTTERY_WHEEL_NAME:
             is_slot_ok = is_slot_ok and (load_info["pottery_wheels_used"] < TOTAL_POTTERY_WHEELS)
         
