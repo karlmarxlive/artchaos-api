@@ -42,7 +42,7 @@ async def get_start_times(
     if not abonement_data:
         return {"result": "❌ У тебя не найден действующий абонемент :( Пожалуйста, напиши об этой ошибке @egor_savenko"}
         
-    days_left = abonement_data.get("Осталось дней", 0)
+    days_left = int(abonement_data.get("Осталось дней", 0))
     
     today = datetime.date.today()
     delta_days = (requested_date - today).days
