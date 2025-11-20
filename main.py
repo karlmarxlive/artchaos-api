@@ -109,8 +109,9 @@ async def create_booking(booking_data: schemas.BookingCreate):
     try:
         parsed_date = parse_date_from_str(booking_data.date)
     except Exception as e:
-        logger.error(f"⚠️ Ошибка парсинга даты: {e}")
-        raise e
+        err_msg = f"Ошибка формата даты: {booking_data.date}"
+        logger.error(f"⚠️ Ошибка парсинга даты: {e} | {err_msg}")
+        return {"status": "error", "result": "Неверный формат даты. Попробуй ещё раз или напиши @egor_savenko."}
     
     # Проверка на дубли
     existing_bookings = await nocodb_client.get_all_bookings_by_telegram_id(booking_data.telegram_id)
@@ -121,12 +122,7 @@ async def create_booking(booking_data: schemas.BookingCreate):
             b["Время начала"][:5] == booking_data.start_time):
             
             logger.warning(f"⚠️ ДУБЛЬ ЗАПРОСА. Бронь на {booking_data.date} {booking_data.start_time} уже существует для этого юзера.")
-            return {
-                "status": "success", 
-                "booking_details": b,
-                "end_time": b["Время конца"][:5],
-                "message": "Booking already exists" 
-            }
+            return {"status": "error", "result": "Ты уже записан на это время! Возможно, это произошло случайно. Лучше проверь свои записи."}
     
     logger.info("🔍 Проверяем доступность слотов...")
     
@@ -145,14 +141,12 @@ async def create_booking(booking_data: schemas.BookingCreate):
     
     if booking_data.duration_hours > current_max_duration:
         logger.warning(f"⛔️ ОТКАЗ: Нет места. Доступно {current_max_duration}, надо {booking_data.duration_hours}")
-        raise HTTPException(
-            status_code=409,
-            detail="Извините, это время или его часть только что заняли. Пожалуйста, попробуйте выбрать время заново."
-        )
+        return {"status": "error", "result": "Это время или его часть только что заняли 😕."}
     
     start_dt = datetime.datetime.strptime(booking_data.start_time, "%H:%M")
     duration = timedelta(hours=booking_data.duration_hours)
     end_dt = start_dt + duration
+    end_time_str = end_dt.strftime("%H:%M")
     
     telegram_field_value = booking_data.telegram
     if booking_data.telegram == "—" or booking_data.telegram == "":
@@ -174,17 +168,15 @@ async def create_booking(booking_data: schemas.BookingCreate):
     
     if not new_booking:
         logger.error("❌ NocoDB вернула пустой ответ или ошибку.")
-        raise HTTPException(
-            status_code=500,
-            detail="Не удалось создать запись в базе данных. Пожалуйста, свяжиcь с @egor_savenko"
-        )
+        return {"status": "error", "result": "Техническая ошибка сервера. Попробуй позже или напиши @egor_savenko."}
     
     logger.info(f"✅ Бронь успешно создана! ID: {new_booking.get('Id')}")    
     
-    return {"status": "success", 
-            "booking_details": new_booking,
-            "end_time": end_dt.strftime("%H:%M")
-            }
+    return {
+            "status": "success", 
+            "result": end_time_str,
+            "booking_id": new_booking.get('Id')
+        }
     
     
 @app.get("/api/v1/my_bookings")
