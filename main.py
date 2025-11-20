@@ -1,4 +1,6 @@
+import sys
 import datetime
+import logging
 from fastapi import FastAPI, Query, HTTPException
 from starlette.responses import Response
 from datetime import timedelta 
@@ -6,6 +8,13 @@ from datetime import timedelta
 import nocodb_client
 import booking_logic
 import schemas
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="ArtChaos API",
@@ -92,10 +101,34 @@ async def check_duration(
 @app.post("/api/v1/bookings", status_code=201) # status_code=201 означает "Created"
 async def create_booking(booking_data: schemas.BookingCreate):
     """
-    Эндпоинт для создания новой брони с финальной проверкой.
+    Эндпоинт для создания новой брони.
     """
     
-    parse_date_from_str(booking_data.date)
+    logger.info(f"🚀 НАЧАЛО СОЗДАНИЯ БРОНИ. Telegram ID: {booking_data.telegram_id}. Данные: {booking_data.model_dump()}")
+
+    try:
+        parsed_date = parse_date_from_str(booking_data.date)
+    except Exception as e:
+        logger.error(f"⚠️ Ошибка парсинга даты: {e}")
+        raise e
+    
+    # Проверка на дубли
+    existing_bookings = await nocodb_client.get_all_bookings_by_telegram_id(booking_data.telegram_id)
+    start_dt_check = datetime.datetime.strptime(booking_data.start_time, "%H:%M").time()
+    
+    for b in existing_bookings:
+        if (b["Дата посещения"] == booking_data.date and 
+            b["Время начала"][:5] == booking_data.start_time):
+            
+            logger.warning(f"⚠️ ДУБЛЬ ЗАПРОСА. Бронь на {booking_data.date} {booking_data.start_time} уже существует для этого юзера.")
+            return {
+                "status": "success", 
+                "booking_details": b,
+                "end_time": b["Время конца"][:5],
+                "message": "Booking already exists" 
+            }
+    
+    logger.info("🔍 Проверяем доступность слотов...")
     
     latest_bookings = await nocodb_client.get_bookings_by_date(booking_data.date)
     latest_events = await nocodb_client.get_events_by_date(booking_data.date)
@@ -108,9 +141,12 @@ async def create_booking(booking_data: schemas.BookingCreate):
         equipment_required=booking_data.equipment
     )
     
+    logger.info(f"⏱ Доступная длительность: {current_max_duration} ч. Запрошено: {booking_data.duration_hours} ч.")
+    
     if booking_data.duration_hours > current_max_duration:
+        logger.warning(f"⛔️ ОТКАЗ: Нет места. Доступно {current_max_duration}, надо {booking_data.duration_hours}")
         raise HTTPException(
-            status_code=409, # 409 Conflict - подходящий код для этой ситуации
+            status_code=409,
             detail="Извините, это время или его часть только что заняли. Пожалуйста, попробуйте выбрать время заново."
         )
     
@@ -132,14 +168,18 @@ async def create_booking(booking_data: schemas.BookingCreate):
         "Telegram ID": booking_data.telegram_id
     }
     
+    logger.info(f"📤 Отправляем запрос в NocoDB: {data_for_nocodb}")
+    
     new_booking = await nocodb_client.create_booking(data_for_nocodb)
     
     if not new_booking:
+        logger.error("❌ NocoDB вернула пустой ответ или ошибку.")
         raise HTTPException(
             status_code=500,
             detail="Не удалось создать запись в базе данных. Пожалуйста, свяжиcь с @egor_savenko"
         )
-        
+    
+    logger.info(f"✅ Бронь успешно создана! ID: {new_booking.get('Id')}")    
     
     return {"status": "success", 
             "booking_details": new_booking,

@@ -1,3 +1,4 @@
+import logging
 import httpx
 import datetime
 from urllib.parse import quote
@@ -15,6 +16,8 @@ BASE_URL = f"{settings.NOCODB_URL}/api/v2/tables"
 HEADERS = {
     "xc-token": settings.NOCODB_API_TOKEN
 }
+
+logger = logging.getLogger(__name__)
 
 # --- Функции для получения данных из NocoDB ---
 
@@ -103,8 +106,11 @@ async def create_booking(booking_data: dict) -> dict | None:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            print(f"Ошибка при создании записи в NocoDB: {e}")
-            print(f"Тело ответа: {e.response.text}")
+            logger.error(f"❌ Ошибка NocoDB create_booking: {e}")
+            logger.error(f"📄 Ответ сервера: {e.response.text}")
+            return None
+        except Exception as e:
+            logger.error(f"❌ Неизвестная ошибка create_booking: {e}")
             return None
         
         
