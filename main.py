@@ -217,11 +217,11 @@ async def get_my_bookings(telegram_id: str):
     
     for date_str in unique_dates:
         events = await nocodb_client.get_events_by_date(date_str)
-    if events:
-        events_map[date_str] = events
+        if events:
+            events_map[date_str] = events
     
     # --- Форматирование списка ---
-    formatted_lines = ["Твои записи: \n"]
+    formatted_lines = ["Твои записи:"]
     booking_map = {} 
 
     for i, booking in enumerate(future_bookings, 1):
@@ -248,7 +248,7 @@ async def get_my_bookings(telegram_id: str):
                                 
                 if b_start < e_end and b_end > e_start:
                     event_name = event.get("Название", "Мероприятие")
-                    line += f"\n  ⚠️ Пересекается с: {event_name}"
+                    line += f"\n⚠️ Пересекается с: {event_name}"
                     break 
             
         formatted_lines.append(line)
