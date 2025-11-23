@@ -196,7 +196,6 @@ async def get_my_bookings(telegram_id: str):
             booking_date = datetime.datetime.strptime(booking["Дата посещения"], "%d.%m.%Y").date()
             booking_time = datetime.datetime.strptime(booking["Время начала"], "%H:%M:%S").time()
             booking_datetime = datetime.datetime.combine(booking_date, booking_time)
-            
             booking_datetime_aware = booking_datetime.replace(tzinfo=booking_logic.WORKSHOP_TIMEZONE)
 
             if booking_datetime_aware > now_aware:
@@ -204,16 +203,24 @@ async def get_my_bookings(telegram_id: str):
         except (ValueError, KeyError):
             continue
 
-    # Сортируем от ближайшей к самой дальней
     future_bookings.sort(key=lambda b: (
         datetime.datetime.strptime(b["Дата посещения"], "%d.%m.%Y"),
         datetime.datetime.strptime(b["Время начала"], "%H:%M:%S")
     ))
 
     if not future_bookings:
-        no_bookings_text = "У тебя пока нет записей.\nХочешь записаться? 👇"
-        return {"result": no_bookings_text}
+        return {"result": "У тебя пока нет записей.\nХочешь записаться? 👇"}
 
+    # --- Получаем мероприятия, проверим пересечения ниже ---
+    unique_dates = {b["Дата посещения"] for b in future_bookings}
+    events_map = {} 
+    
+    for date_str in unique_dates:
+        events = await nocodb_client.get_events_by_date(date_str)
+    if events:
+        events_map[date_str] = events
+    
+    # --- Форматирование списка ---
     formatted_lines = ["Твои записи: \n"]
     booking_map = {} 
 
@@ -227,6 +234,21 @@ async def get_my_bookings(telegram_id: str):
         activity_description = booking.get("Что будет делать")
         if activity_description:
             line += f"\n  📝 {activity_description}"
+            
+        # --- Проверка пересечений ---
+        date_key = booking["Дата посещения"]
+        if date_key in events_map:
+            b_start = datetime.datetime.strptime(booking["Время начала"], "%H:%M:%S").time()
+            b_end = datetime.datetime.strptime(booking["Время конца"], "%H:%M:%S").time()
+            
+            for event in events_map[date_key]:
+                e_start = datetime.datetime.strptime(event["Начало"], "%H:%M:%S").time()
+                e_end = datetime.datetime.strptime(event["Конец"], "%H:%M:%S").time()
+                                
+                if b_start < e_end and b_end > e_start:
+                    event_name = event.get("Название", "Мероприятие")
+                    line += f"\n  ⚠️ Пересекается с: {event_name}"
+                    break 
             
         formatted_lines.append(line)
         booking_map[str(i)] = booking['Id']
