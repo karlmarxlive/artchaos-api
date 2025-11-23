@@ -240,6 +240,47 @@ async def get_my_bookings(telegram_id: str):
     return {"result": final_text}
 
 
+@app.get("/api/v1/daily_bookings")
+async def get_daily_bookings(date_str: str = Query(..., alias="date")):
+    """
+    Возвращает список всех броней на конкретную дату.
+    """
+    try:
+        parse_date_from_str(date_str)
+    except Exception:
+         return {"result": "Неверный формат даты. Пожалуйста, попробуй ещё раз или напиши @egor_savenko"}
+
+    bookings = await nocodb_client.get_bookings_by_date(date_str)
+
+    if not bookings:
+        return {"result": f"Ой, кажется, ты будешь первым :)"}
+
+    bookings.sort(key=lambda b: b["Время начала"])
+    
+    formatted_lines = []
+
+    for i, booking in enumerate(bookings, 1):
+        name = booking.get("Telegram", "Гость")
+        
+        start_time = booking["Время начала"][:5]
+        end_time = booking["Время конца"][:5]
+
+        line = f"{i}. @{name}: {start_time} — {end_time}"
+
+        if booking.get("Оборудование"):
+            line += f" (📍 {booking['Оборудование']})"
+
+        activity_description = booking.get("Что будет делать")
+        if activity_description:
+            line += f"\n  📝 {activity_description}"
+
+        formatted_lines.append(line)
+
+    final_text = "\n\n".join(formatted_lines)
+    
+    return {"result": final_text}
+
+
 @app.post("/api/v1/cancel_booking")
 async def cancel_booking(cancel_data: schemas.BookingCancel):
     """
