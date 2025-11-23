@@ -226,14 +226,15 @@ async def get_my_bookings(telegram_id: str):
 
     for i, booking in enumerate(future_bookings, 1):
         start_time_short = booking['Время начала'][:5]
-        line = f"{i}. 📆 {booking['Дата посещения']} в {start_time_short}"
+        end_time_short = booking["Время конца"][:5]
+        line = f"{i}. {booking['Дата посещения']}: {start_time_short} — {end_time_short}"
         
         if booking.get("Оборудование"):
             line += f" (📍 {booking['Оборудование']})"
             
         activity_description = booking.get("Что будет делать")
         if activity_description:
-            line += f"\n  📝 {activity_description}"
+            line += f"\n► {activity_description}"
             
         # --- Проверка пересечений ---
         date_key = booking["Дата посещения"]
@@ -294,7 +295,7 @@ async def get_daily_bookings(date_str: str = Query(..., alias="date")):
 
         activity_description = booking.get("Что будет делать")
         if activity_description:
-            line += f"\n  📝 {activity_description}"
+            line += f"\n► {activity_description}"
 
         formatted_lines.append(line)
 
