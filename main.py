@@ -8,6 +8,7 @@ from datetime import timedelta
 import nocodb_client
 import booking_logic
 import schemas
+import firing_logic
 
 logging.basicConfig(
     level=logging.INFO,
@@ -352,3 +353,42 @@ async def cancel_booking(cancel_data: schemas.BookingCancel):
             "status": "error",
             "message": "Возникла проблема при отмене брони. Пожалуйста, свяжись с @egor_savenko"
         }
+        
+        
+@app.post("/api/v1/calculate_firing_cost", status_code=200)
+async def calculate_firing_cost(data: schemas.FiringCalculationRequest):
+    """
+    Рассчитывает стоимость обжига с учетом клубной карты и конкурсов.
+    """
+    logger.info(f"🔥 РАСЧЕТ ОБЖИГА. ID: {data.telegram_id}. {data.quantity} шт, {data.size}, {data.firing_type}")
+
+    item_base_cost = firing_logic.calculate_base_item_cost(
+        data.size, data.firing_type, data.glaze_type
+    )
+
+    if item_base_cost == -1:
+        logger.error(f"❌ Неверные параметры обжига: {data.size}, {data.firing_type}")
+        return {"result": "Ошибка: Неверно указан размер или тип обжига."}
+
+    total_cost = item_base_cost * data.quantity
+    logger.info(f"💰 Базовая стоимость: {total_cost} руб.")
+
+    is_client = await nocodb_client.check_client_exists(data.telegram_id)
+    
+    if not is_client:
+        logger.info("👤 Пользователь не найден в Clients. Наценка +25%.")
+        total_cost = total_cost * 1.25
+    else:
+        logger.info("👤 Пользователь найден в Clients. Цена стандартная.")
+
+    is_contestant = await nocodb_client.check_contest_participant(data.telegram_id)
+    
+    if is_contestant:
+        logger.info("🏆 Участник конкурса! Скидка -15%.")
+        total_cost = total_cost * 0.85
+
+    final_price = round(total_cost)
+
+    logger.info(f"✅ Итоговая цена: {final_price}")
+
+    return {"result": final_price}

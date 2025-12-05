@@ -9,6 +9,8 @@ from config import settings
 BOOKINGS_TABLE_ID = "mgaqhk43i310jv7"
 EVENTS_TABLE_ID = "m3itfdcts4vcet8" 
 ABONEMENTS_TABLE_ID = "moy99x4xmd1oaxd"
+CLIENTS_TABLE_ID = "mq217glyrctsqrh"
+FIRING_CONTEST_TABLE_ID = "m8opdrugw7vxnnz"
 
 
 # --- Константы и базовые настройки ---
@@ -157,3 +159,36 @@ async def get_abonement_by_telegram_id(telegram_id: str) -> dict | None:
         except httpx.HTTPStatusError as e:
             print(f"Ошибка при запросе к NocoDB (Abonements): {e}")
             return None
+        
+
+async def check_client_exists(telegram_id: str) -> bool:
+    """Проверяет, есть ли пользователь в таблице Clients."""
+    id_field_name = "Telegram ID" 
+    
+    filter_query = quote(f"({id_field_name},eq,{telegram_id})")
+    request_url = f"{BASE_URL}/{CLIENTS_TABLE_ID}/records?where={filter_query}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status()
+            return bool(response.json().get("list"))
+        except Exception as e:
+            logger.error(f"Ошибка проверки клиента {telegram_id}: {e}")
+            return False
+
+async def check_contest_participant(telegram_id: str) -> bool:
+    """Проверяет, участвует ли пользователь в конкурсе."""
+    id_field_name = "Telegram ID"
+    
+    filter_query = quote(f"({id_field_name},eq,{telegram_id})")
+    request_url = f"{BASE_URL}/{FIRING_CONTEST_TABLE_ID}/records?where={filter_query}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status()
+            return bool(response.json().get("list"))
+        except Exception as e:
+            logger.error(f"Ошибка проверки конкурса {telegram_id}: {e}")
+            return False
