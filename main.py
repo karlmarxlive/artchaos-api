@@ -383,9 +383,9 @@ async def calculate_firing_cost(data: schemas.FiringCalculationRequest):
 
     is_contestant = await nocodb_client.check_contest_participant(data.telegram_id)
     
-    if is_contestant:
-        logger.info("🏆 Участник конкурса! Скидка -15%.")
-        total_cost = total_cost * 0.85
+    # if is_contestant:
+        # logger.info("🏆 Участник конкурса! Скидка -15%.")
+        # total_cost = total_cost * 0.85
 
     final_price = round(total_cost)
 
