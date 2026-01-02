@@ -1,7 +1,9 @@
 import sys
+import os
 import datetime
 import logging
 from fastapi import FastAPI, Query, HTTPException
+from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from datetime import timedelta 
 
@@ -22,6 +24,18 @@ app = FastAPI(
     description="API для управления бронированиями в творческой мастерской.",
     version="1.0.0"
 )
+
+if os.path.exists("/data"):
+    DATA_DIRECTORY = "/data"
+    logger.info("📂 Используем системную папку: /data")
+else:
+    DATA_DIRECTORY = "data" 
+    logger.info("📂 Используем локальную папку: ./data")
+    
+if not os.path.exists(DATA_DIRECTORY):
+    os.makedirs(DATA_DIRECTORY)
+    
+app.mount("/course", StaticFiles(directory=DATA_DIRECTORY), name="course")
 
 USER_BOOKING_CACHE = {}
 CACHE_LIFETIME_MINUTES = 30
