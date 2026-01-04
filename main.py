@@ -25,16 +25,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-if os.path.exists("/data"):
-    DATA_DIRECTORY = "/data"
-    logger.info("📂 Используем системную папку: /data")
-else:
-    DATA_DIRECTORY = "data" 
-    logger.info("📂 Используем локальную папку: ./data")
-    
+DATA_DIRECTORY = "data" 
+
 if not os.path.exists(DATA_DIRECTORY):
     os.makedirs(DATA_DIRECTORY)
-    
+
 app.mount("/course", StaticFiles(directory=DATA_DIRECTORY), name="course")
 
 USER_BOOKING_CACHE = {}
