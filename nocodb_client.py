@@ -11,7 +11,8 @@ EVENTS_TABLE_ID = "m3itfdcts4vcet8"
 ABONEMENTS_TABLE_ID = "moy99x4xmd1oaxd"
 CLIENTS_TABLE_ID = "mq217glyrctsqrh"
 FIRING_CONTEST_TABLE_ID = "m8opdrugw7vxnnz"
-
+LESSONS_TABLE_ID = "myl53r82w4rt3yo"
+PROGRESS_TABLE_ID = "mdhmuk06amqut8a"
 
 # --- Константы и базовые настройки ---
 BASE_URL = f"{settings.NOCODB_URL}/api/v2/tables"
@@ -191,4 +192,93 @@ async def check_contest_participant(telegram_id: str) -> bool:
             return bool(response.json().get("list"))
         except Exception as e:
             logger.error(f"Ошибка проверки конкурса {telegram_id}: {e}")
+            return False
+        
+
+# --- МЕТОДЫ КУРСА ---
+
+async def get_all_lessons() -> list:
+    """Получает список уроков из базы, отсортированных по порядку."""
+    sort_field = quote("Sort Order")
+    request_url = f"{BASE_URL}/{LESSONS_TABLE_ID}/records?sort={sort_field}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status()
+            return response.json().get("list", [])
+        except Exception as e:
+            logger.error(f"Ошибка получения уроков: {e}")
+            return []
+        
+
+async def get_user_course_progress(telegram_id: str) -> dict | None:
+    """
+    Получает прогресс пользователя.
+    Важно: нужно подгрузить связанные данные (Completed Lessons).
+    """
+    id_field = "Telegram ID"
+    filter_query = quote(f"({id_field},eq,{telegram_id})")
+    
+    request_url = f"{BASE_URL}/{PROGRESS_TABLE_ID}/records?where={filter_query}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status()
+            results = response.json().get("list", [])
+            if results:
+                return results[0]
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка получения прогресса {telegram_id}: {e}")
+            return None
+        
+
+async def create_user_progress(telegram_id: str, default_blocks: str = "basic") -> dict | None:
+    """Создает запись прогресса для нового ученика."""
+    request_url = f"{BASE_URL}/{PROGRESS_TABLE_ID}/records"
+    data = {
+        "Telegram ID": telegram_id,
+        "Access Blocks": default_blocks,
+    }
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(request_url, headers=HEADERS, json=data)
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(f"❌ Ошибка создания прогресса (NocoDB 400): {e}")
+            logger.error(f"📄 Ответ сервера: {e.response.text}") 
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка создания прогресса: {e}")
+            return None
+        
+
+async def mark_lesson_as_completed(telegram_id: str, lesson_id_in_db: int):
+    """
+    Добавляет урок в список выполненных.
+    """
+    user_progress = await get_user_course_progress(telegram_id)
+    if not user_progress:
+        return False
+    
+    progress_record_id = user_progress["Id"]
+    
+    link_field_id = "cko3o2xhzsm3yrs"
+    
+    request_url = f"{BASE_URL}/{PROGRESS_TABLE_ID}/links/{link_field_id}/records/{progress_record_id}"
+    
+    body = [{"Id": lesson_id_in_db}]
+
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.post(request_url, headers=HEADERS, json=body)
+            response.raise_for_status()
+            return True
+        except Exception as e:
+            logger.error(f"Ошибка привязки урока: {e}")
+            if isinstance(e, httpx.HTTPStatusError):
+                 logger.error(f"Детали: {e.response.text}")
             return False

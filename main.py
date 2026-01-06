@@ -3,6 +3,7 @@ import os
 import datetime
 import logging
 from fastapi import FastAPI, Query, HTTPException
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from datetime import timedelta 
@@ -11,6 +12,7 @@ import nocodb_client
 import booking_logic
 import schemas
 import firing_logic
+from routers import course 
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +26,8 @@ app = FastAPI(
     description="API для управления бронированиями в творческой мастерской.",
     version="1.0.0"
 )
+
+app.include_router(course.router)
 
 DATA_DIRECTORY = "data" 
 
@@ -42,6 +46,9 @@ def parse_date_from_str(date_str: str) -> datetime.date:
     except ValueError:
         raise HTTPException(status_code=400, detail="Неверный формат даты. Ожидается dd.mm.yyyy")
 
+@app.get("/")
+async def root():
+    return RedirectResponse(url="/docs")
 
 @app.get("/api/v1/available_start_times")
 async def get_start_times(
