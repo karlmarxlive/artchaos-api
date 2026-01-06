@@ -1,0 +1,178 @@
+/* --- Variables --- */
+:root {
+    --color-accent: #ba1c1d;
+    --color-bg: #F7F7F5;
+    --color-card: #FFFFFF;
+    --color-text-main: #2C2C2C;
+    --color-text-secondary: #858585;
+    --color-line: #E0E0E0;
+    --color-success: #4A7A5E;
+
+    --font-display: 'MarketFresh', sans-serif;
+    --font-body: 'Musticapro', sans-serif;
+    
+    --radius-card: 16px;
+    --spacing-unit: 8px;
+}
+
+/* --- Fonts --- */
+@font-face {
+    font-family: 'MarketFresh';
+    src: url('../fonts/MarketFreshInlineBold.ttf') format('truetype');
+}
+@font-face {
+    font-family: 'Musticapro';
+    src: url('../fonts/MusticaproSemibold.otf') format('opentype');
+}
+
+/* --- Reset & Base --- */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+    background-color: var(--color-bg);
+    color: var(--color-text-main);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    padding: 20px;
+    padding-bottom: 40px;
+}
+
+/* --- Components (BEM) --- */
+
+/* Блок заголовка пользователя */
+.user-header {
+    margin-bottom: 32px;
+}
+.user-header__greeting {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+}
+.user-header__name {
+    font-family: var(--font-display);
+    font-size: 32px;
+    color: var(--color-accent);
+}
+
+/* Блок таймлайна */
+.timeline {
+    position: relative;
+    padding-left: 24px; /* Место для линии */
+}
+
+/* Вертикальная линия */
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 10px;
+    bottom: 20px;
+    width: 2px;
+    background: repeating-linear-gradient(
+        to bottom,
+        var(--color-line),
+        var(--color-line) 6px,
+        transparent 6px,
+        transparent 12px
+    );
+    z-index: 0;
+}
+
+/* Заголовок блока курса (1, 2...) */
+.block-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    color: var(--color-text-main);
+    margin-top: 32px;
+    margin-bottom: 16px;
+    position: relative;
+    left: -24px; /* Компенсация отступа таймлайна */
+    padding-left: 24px;
+}
+
+/* Элемент таймлайна (Карточка урока) */
+.timeline__item {
+    position: relative;
+    margin-bottom: 24px;
+}
+
+/* Точка на линии */
+.timeline__dot {
+    position: absolute;
+    left: -21px; /* (24 padding - 7 center line) + adjustment */
+    top: 20px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: var(--color-bg);
+    border: 2px solid var(--color-line);
+    z-index: 1;
+}
+
+/* Карточка урока */
+.lesson-card {
+    background-color: var(--color-card);
+    border-radius: var(--radius-card);
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    text-decoration: none;
+    display: block;
+    border: 1px solid transparent;
+}
+
+.lesson-card__title {
+    font-size: 18px;
+    color: var(--color-text-main);
+    margin-bottom: 8px;
+}
+
+.lesson-card__status {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--color-text-secondary);
+}
+
+/* --- Modifiers (Состояния) --- */
+
+/* Активный урок */
+.timeline__item--active .timeline__dot {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 4px rgba(186, 28, 29, 0.2);
+}
+.timeline__item--active .lesson-card {
+    border-color: var(--color-accent);
+    transform: scale(1.02);
+    box-shadow: 0 8px 20px rgba(186, 28, 29, 0.1);
+}
+.timeline__item--active .lesson-card__status {
+    color: var(--color-accent);
+    font-weight: bold;
+}
+
+/* Пройденный урок */
+.timeline__item--completed .timeline__dot {
+    background-color: var(--color-success);
+    border-color: var(--color-success);
+}
+.timeline__item--completed .lesson-card__status {
+    color: var(--color-success);
+}
+.timeline__item--completed .lesson-card__title {
+    text-decoration: line-through; /* Опционально, можно убрать */
+    opacity: 0.7;
+}
+
+/* Заблокированный урок */
+.timeline__item--locked .lesson-card {
+    opacity: 0.6;
+    pointer-events: none; /* Нельзя нажать */
+    background-color: #F0F0F0;
+}
+.timeline__item--locked .lesson-card__status::before {
+    content: '🔒 ';
+}
