@@ -193,6 +193,27 @@ async def check_contest_participant(telegram_id: str) -> bool:
         except Exception as e:
             logger.error(f"Ошибка проверки конкурса {telegram_id}: {e}")
             return False
+
+async def get_client_name_by_telegram_id(telegram_id: str) -> str | None:
+    """Получает имя пользователя из таблицы Clients по Telegram ID."""
+    id_field_name = "Telegram ID"
+    name_field_name = "Имя"
+    
+    filter_query = quote(f"({id_field_name},eq,{telegram_id})")
+    request_url = f"{BASE_URL}/{CLIENTS_TABLE_ID}/records?where={filter_query}"
+    
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(request_url, headers=HEADERS)
+            response.raise_for_status()
+            results = response.json().get("list", [])
+            if results:
+                client_name = results[0].get(name_field_name)
+                return client_name if client_name else None
+            return None
+        except Exception as e:
+            logger.error(f"Ошибка получения имени клиента {telegram_id}: {e}")
+            return None
         
 
 # --- МЕТОДЫ КУРСА ---
@@ -215,20 +236,86 @@ async def get_all_lessons() -> list:
 async def get_user_course_progress(telegram_id: str) -> dict | None:
     """
     Получает прогресс пользователя.
-    Важно: нужно подгрузить связанные данные (Completed Lessons).
+    Важно: подгружает связанные данные (Completed Lessons).
     """
     id_field = "Telegram ID"
     filter_query = quote(f"({id_field},eq,{telegram_id})")
     
+    # Пробуем разные варианты подгрузки связанных данных
+    # В NocoDB API v2 правильный синтаксис: nested[LinkFieldName][fields]=Field1,Field2
+    # Или можно указать все поля: nested[LinkFieldName]
     request_url = f"{BASE_URL}/{PROGRESS_TABLE_ID}/records?where={filter_query}"
+    
+    # Пробуем разные варианты имени поля связи
+    # Вариант 1: Completed_Lessons (с подчеркиванием)
+    request_url_with_nested = f"{request_url}&nested[Completed_Lessons][fields]=Id,Slug,Title"
+    # Вариант 2: Completed Lessons (с пробелом, нужно экранировать)
+    request_url_with_nested2 = f"{request_url}&nested[Completed Lessons][fields]=Id,Slug,Title"
     
     async with httpx.AsyncClient() as client:
         try:
-            response = await client.get(request_url, headers=HEADERS)
-            response.raise_for_status()
+            # Сначала пробуем с nested (вариант 1: Completed_Lessons)
+            try:
+                response = await client.get(request_url_with_nested, headers=HEADERS)
+                response.raise_for_status()
+            except:
+                # Если не сработало, пробуем вариант 2 (Completed Lessons)
+                logger.info("Пробуем альтернативное имя поля связи")
+                response = await client.get(request_url_with_nested2, headers=HEADERS)
+                response.raise_for_status()
+            
             results = response.json().get("list", [])
+            
             if results:
-                return results[0]
+                progress_data = results[0]
+                # Логируем для отладки
+                logger.info(f"Получен прогресс для {telegram_id}")
+                logger.info(f"Ключи в progress_data: {list(progress_data.keys())}")
+                
+                # Проверяем разные варианты имени поля
+                completed_lessons = (
+                    progress_data.get("Completed_Lessons") or 
+                    progress_data.get("Completed Lessons") or 
+                    progress_data.get("completed_lessons") or
+                    None
+                )
+                
+                logger.info(f"Completed_Lessons = {completed_lessons}, тип: {type(completed_lessons)}")
+                
+                # Если связанные данные не загрузились (None, пустой список) или это число (количество, а не данные),
+                # пробуем загрузить их отдельно через links API
+                progress_id = progress_data.get("Id")
+                if progress_id:
+                    # Проверяем: если это не список словарей, загружаем через links API
+                    needs_links_api = (
+                        not completed_lessons or  # None или пустой список
+                        isinstance(completed_lessons, (int, float)) or  # Число (количество записей)
+                        (isinstance(completed_lessons, list) and len(completed_lessons) > 0 and not isinstance(completed_lessons[0], dict))  # Список, но не словарей
+                    )
+                    
+                    if needs_links_api:
+                        link_field_id = "cko3o2xhzsm3yrs"  # ID поля связи из mark_lesson_as_completed
+                        links_url = f"{BASE_URL}/{PROGRESS_TABLE_ID}/links/{link_field_id}/records/{progress_id}"
+                        try:
+                            logger.info(f"Загружаем связанные уроки через links API для progress_id={progress_id}")
+                            links_response = await client.get(links_url, headers=HEADERS)
+                            links_response.raise_for_status()
+                            linked_lessons = links_response.json().get("list", [])
+                            if linked_lessons:
+                                # Сохраняем под правильным ключом (с пробелом, как в NocoDB)
+                                progress_data["Completed Lessons"] = linked_lessons
+                                # Также сохраняем под альтернативным ключом для совместимости
+                                progress_data["Completed_Lessons"] = linked_lessons
+                                logger.info(f"Загружены связанные уроки через links API: {len(linked_lessons)} уроков")
+                                logger.info(f"Пример урока: {linked_lessons[0] if linked_lessons else 'нет'}")
+                            else:
+                                logger.warning("Links API вернул пустой список")
+                        except Exception as links_error:
+                            logger.error(f"Не удалось загрузить связанные уроки через links API: {links_error}")
+                            if isinstance(links_error, httpx.HTTPStatusError):
+                                logger.error(f"Детали ошибки: {links_error.response.text}")
+                
+                return progress_data
             return None
         except Exception as e:
             logger.error(f"Ошибка получения прогресса {telegram_id}: {e}")

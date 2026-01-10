@@ -37,10 +37,14 @@ async def get_course_timeline(telegram_id: str):
     
     timeline_data = course_logic.calculate_timeline(all_lessons, user_progress)
     
+    # Получаем имя пользователя из таблицы Clients
+    client_name = await nocodb_client.get_client_name_by_telegram_id(telegram_id)
+    user_name = client_name if client_name else "Ученик"
+    
     return {
         "status": "success",
         "timeline": timeline_data,
-        "user_name": user_progress.get("Telegram ID")
+        "user_name": user_name
     }
 
 

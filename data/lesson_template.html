@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Урок - ArtChaos Academy</title>
+    <!-- Подключаем стили -->
+    <link rel="stylesheet" href="assets/css/styles.css">
+    <!-- Скрипт Телеграма -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://puzzlebot.top/webapp.js"></script>
+</head>
+<body>
+    <div class="lesson-page">
+        <!-- Кнопка назад -->
+        <a href="#" id="back-link" class="lesson-page__back">
+            <svg class="lesson-page__back-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="15 18 9 12 15 6"></polyline>
+            </svg>
+            Назад
+        </a>
+
+        <!-- Заголовок урока -->
+        <header class="lesson-page__header">
+            <h1 id="lesson-title" class="lesson-page__title">Загрузка...</h1>
+        </header>
+
+        <!-- Контент урока -->
+        <div class="lesson-page__content">
+            <!-- Видео -->
+            <div class="lesson-page__video" id="lesson-video">
+                Видео будет здесь
+            </div>
+
+            <!-- Текст урока -->
+            <div class="lesson-page__text" id="lesson-text">
+                <p>Загрузка контента...</p>
+            </div>
+
+            <!-- Изображения -->
+            <div class="lesson-page__image" id="lesson-image">
+                Изображение будет здесь
+            </div>
+        </div>
+    </div>
+
+    <!-- Sticky Footer с кнопкой завершения -->
+    <footer class="lesson-page__footer">
+        <button id="complete-btn" class="lesson-page__complete-btn">
+            Завершить урок
+        </button>
+    </footer>
+
+    <!-- Подключаем логику -->
+    <script src="assets/js/lesson.js"></script>
+</body>
+</html>
