@@ -158,13 +158,12 @@ function switchBlock(newBlockId) {
     // После анимации меняем контент
     setTimeout(() => {
         currentBlockId = newBlockId;
-        renderTimeline(blocksData[newBlockId]);
+        // Рендерим новые элементы скрытыми (startHidden=true)
+        renderTimeline(blocksData[newBlockId], true);
         
-        // Fade-in новых элементов
+        // Fade-in новых элементов с небольшой задержкой для каждого
         const newItems = container.querySelectorAll('.timeline__item');
         newItems.forEach((item, index) => {
-            item.classList.add('timeline__item--fade-out');
-            // Небольшая задержка для каждого элемента
             setTimeout(() => {
                 item.classList.remove('timeline__item--fade-out');
                 item.classList.add('timeline__item--fade-in');
@@ -173,13 +172,16 @@ function switchBlock(newBlockId) {
     }, 300);
 }
 
-function renderTimeline(lessons) {
+function renderTimeline(lessons, startHidden = false) {
     const container = document.getElementById('timeline-container');
     let html = '';
     
     // Считаем пройденные уроки для линии прогресса
     let completedCount = 0;
     let totalCount = lessons.length;
+    
+    // Если startHidden=true, элементы рендерятся скрытыми для плавной анимации появления
+    const hiddenClass = startHidden ? ' timeline__item--fade-out' : '';
     
     lessons.forEach((lesson, index) => {
         if (lesson.status === 'completed') {
@@ -207,7 +209,7 @@ function renderTimeline(lessons) {
         }
 
         html += `
-            <div class="timeline__item ${modifier}" data-index="${index}">
+            <div class="timeline__item ${modifier}${hiddenClass}" data-index="${index}">
                 <div class="timeline__dot"></div>
                 <a href="${href}" class="lesson-card">
                     <div class="lesson-card__title">${lesson.title}</div>
