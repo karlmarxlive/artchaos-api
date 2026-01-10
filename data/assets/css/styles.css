@@ -97,13 +97,16 @@ body {
     padding-left: 24px; /* Место для линии */
 }
 
-/* Вертикальная линия */
+/* Вертикальная линия (пунктирная - базовое состояние) */
 .timeline::before {
-    content: '';
+    display: none; /* Скрываем, линия рисуется через JS */
+}
+
+/* Пунктирная линия (динамическая высота через JS) */
+.timeline__dashed-line {
     position: absolute;
     left: 7px;
-    top: 10px;
-    bottom: 20px;
+    top: 27px;
     width: 2px;
     background: repeating-linear-gradient(
         to bottom,
@@ -115,28 +118,81 @@ body {
     z-index: 0;
 }
 
-/* Заголовок блока курса (1, 2...) */
+/* Вертикальная линия прогресса (заполненная часть) */
+.timeline__progress-line {
+    position: absolute;
+    left: 6px;
+    width: 4px;
+    background-color: var(--color-success);
+    border-radius: 2px;
+    z-index: 1;
+}
+
+/* Заголовок блока курса (1, 2...) - скрыт, используется меню блоков */
 .block-title {
-    font-family: var(--font-display);
-    font-size: 24px;
-    color: var(--color-text-main);
-    margin-top: 32px;
-    margin-bottom: 16px;
-    position: relative;
-    left: -24px; /* Компенсация отступа таймлайна */
-    padding-left: 24px;
+    display: none;
+}
+
+/* Меню блоков (pills) */
+.block-menu {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+.block-menu__item {
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: 2px solid var(--color-line);
+    background-color: var(--color-bg);
+    font-family: var(--font-body);
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.6;
+}
+
+.block-menu__item:hover {
+    opacity: 0.8;
+    border-color: var(--color-text-secondary);
+}
+
+.block-menu__item--active {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+    opacity: 1;
+}
+
+.block-menu__item--active:hover {
+    opacity: 1;
+    background-color: #a01819;
+    border-color: #a01819;
 }
 
 /* Элемент таймлайна (Карточка урока) */
 .timeline__item {
     position: relative;
     margin-bottom: 24px;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* Fade-анимации для переключения блоков */
+.timeline__item--fade-out {
+    opacity: 0;
+}
+
+.timeline__item--fade-in {
+    opacity: 1;
 }
 
 /* Точка на линии */
 .timeline__dot {
     position: absolute;
-    left: -21px; /* (24 padding - 7 center line) + adjustment */
+    left: -23px; /* Центрирование: линия на 8px, точка 14px шириной */
     top: 20px;
     width: 14px;
     height: 14px;
@@ -206,7 +262,6 @@ body {
     color: var(--color-success);
 }
 .timeline__item--completed .lesson-card__title {
-    text-decoration: line-through; /* Опционально, можно убрать */
     opacity: 0.7;
 }
 
